@@ -24,7 +24,7 @@ import boto3
 import requests
 
 # --- Configuration ---
-OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")  # recommended to set as env var
+OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")  #env var
 S3_BUCKET = os.environ.get("S3_BUCKET", "weather-flights-data-lake-project")
 S3_RAW_PREFIX = "raw/weather/"
 CURRENT_WEATHER_BASE = "https://api.openweathermap.org/data/2.5/weather"
@@ -33,7 +33,8 @@ CURRENT_WEATHER_BASE = "https://api.openweathermap.org/data/2.5/weather"
 MAX_RETRIES = 3
 RETRY_BACKOFF_SECONDS = 3
 
-# Setup logging
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
