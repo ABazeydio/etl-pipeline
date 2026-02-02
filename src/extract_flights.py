@@ -36,12 +36,15 @@ logger = logging.getLogger("extract_flights")
 #                    flight_status : str, dep_iata : str, arr_iata : str, flight_iata : str,
 #                    api_key : str, params: dict = None) -> dict:
     
-def call_flights_api(**params) -> dict:
-    
+
+#need testing    
+def call_flights_api(endpoint : str, **params) -> dict:
+    # endpoint = "flights" or "airlines" or "airports"
     attempt = 0
+    params.update({"access_key" : FLIGHTS_API_KEY})
     while attempt < MAX_RETRIES:
         try:
-            resp = requests.get(API_BASE, params=params)
+            resp = requests.get(f"{API_BASE}/{endpoint}", params=params)
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as exc:
@@ -55,4 +58,4 @@ def call_flights_api(**params) -> dict:
             if attempt >= MAX_RETRIES:
                 logger.error("Max retries reached...")
                 raise
-            s
+            time.sleep(RETRY_BACKOFF_SECONDS * attempt)
