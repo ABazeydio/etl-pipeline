@@ -37,7 +37,7 @@ logger = logging.getLogger("extract_flights")
 #                    api_key : str, params: dict = None) -> dict:
     
 
-#need testing    
+
 def call_flights_api(endpoint : str, **params) -> dict:
     # endpoint = "flights" or "airlines" or "airports"
     attempt = 0
@@ -59,3 +59,14 @@ def call_flights_api(endpoint : str, **params) -> dict:
                 logger.error("Max retries reached...")
                 raise
             time.sleep(RETRY_BACKOFF_SECONDS * attempt)
+
+
+def upload_flights_s3(data : dict, city : str, endpoint : str):
+    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    s3_key = S3_RAW_PREFIX + city + "/" + endpoint + "_" + timestamp + ".json"
+    s3_client = boto3.client("s3")
+    s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=json.dumps(data))
+    logger.info("Uploaded to s3://%s/%s", S3_BUCKET, s3_key)
+
+test_data = {"flight": "test", "city": "ottawa"}
+upload_flights_s3(test_data, "ottawa", "flights")
