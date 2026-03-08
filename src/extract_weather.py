@@ -140,7 +140,7 @@ def main():
             logger.exception("Failed to fetch data for %s: %s", name, e)
             continue
 
-        # Optional: extract key fields for cleaner JSON
+        #key fields for cleaner JSON
         data_to_store = {
             "city": name,
             "lat": lat,
