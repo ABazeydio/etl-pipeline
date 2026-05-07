@@ -1,2 +1,1 @@
-# etl-pipeline
-api-to-warehouse-pipeline  airflow-spark-redshift-pipeline  data-engineering-pipeline  spark-data-lakehouse-pipeline
+end-to-end data engineering pipeline that extracts weather and flight data from the OpenWeather API, AviationStack API, stores it in AWS S3 as a data lake
