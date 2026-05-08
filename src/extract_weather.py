@@ -83,16 +83,9 @@ def call_current_weather(city: str, api_key: str, params: dict = None) -> dict:
             time.sleep(RETRY_BACKOFF_SECONDS * attempt)
 
 
-def upload_json_to_s3(s3_client, bucket: str, key: str, data: dict) -> None:
-    body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-    s3_client.put_object(Bucket=bucket, Key=key, Body=body)
-    logger.info("Uploaded to s3://%s/%s", bucket, key)
-
-
-def build_s3_key(prefix: str, city_name: str) -> str:
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
-    safe_city = city_name.replace(" ", "_").lower()
-    return f"{prefix}{safe_city}/weather_{timestamp}.json"
+def build_s3_key(prefix: str) -> str:
+    now = datetime.utcnow()
+    return f"{prefix}year={now.strftime('%Y')}/month={now.strftime('%m')}/day={now.strftime('%d')}/weather_{now.strftime('%Y%m%d_%H%M%S')}.ndjson"
 
 
 def main():
@@ -122,6 +115,8 @@ def main():
     # Setup S3 client
     s3_client = boto3.client("s3")
 
+    collected_data = []
+
     for city in locations:
         logger.info("Fetching Current Weather for %s", city)
         try:
@@ -130,31 +125,34 @@ def main():
             logger.exception("Failed to fetch data for %s: %s", city, e)
             continue
 
-        #key fields for cleaner JSON
-        data_to_store = {
-            "city": payload.get("name", city),
-            "lat": payload["coord"]["lat"],
-            "lon": payload["coord"]["lon"],
-            "temp": payload["main"]["temp"],
-            "humidity": payload["main"]["humidity"],
-            "wind_speed": payload["wind"]["speed"],
-            "description": payload["weather"][0]["description"],
-            "timestamp": payload["dt"],
+        record = {
+            "_etl_city_queried": city,
+            "_etl_timestamp": datetime.utcnow().isoformat(),
+            "api_response": payload
         }
+        collected_data.append(record)
 
-        if args.dry_run:
-            logger.info(
-                "Dry run enabled — would upload payload for %s: %d bytes",
-                city,
-                len(json.dumps(data_to_store)),
-            )
-            continue
+    if not collected_data:
+        logger.warning("No data collected. Exiting.")
+        return
 
-        key = build_s3_key(S3_RAW_PREFIX, city)
-        try:
-            upload_json_to_s3(s3_client, args.s3_bucket, key, data_to_store)
-        except Exception:
-            logger.exception("Failed to upload data for %s to S3", city)
+    # Convert to JSON Lines (NDJSON)
+    ndjson_body = "\n".join(json.dumps(rec, ensure_ascii=False) for rec in collected_data).encode("utf-8")
+
+    if args.dry_run:
+        logger.info(
+            "Dry run enabled — would upload batch payload of %d records: %d bytes",
+            len(collected_data),
+            len(ndjson_body),
+        )
+        return
+
+    key = build_s3_key(S3_RAW_PREFIX)
+    try:
+        s3_client.put_object(Bucket=args.s3_bucket, Key=key, Body=ndjson_body)
+        logger.info("Uploaded to s3://%s/%s", args.s3_bucket, key)
+    except Exception:
+        logger.exception("Failed to upload batch data to S3")
 
     logger.info("Extraction job complete.")
 
